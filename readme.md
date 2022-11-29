@@ -19,6 +19,7 @@ TOKEN=<YOUR_BOT_TOKEN>
 # Run bot & update .env file
 
 > deta deploy
+
 > deta update -e .env
 
 # Connect webhook to bot
