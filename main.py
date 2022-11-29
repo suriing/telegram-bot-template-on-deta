@@ -2,6 +2,8 @@ import os
 import logging
 import asyncio
 import random
+from html import escape
+from uuid import uuid4
 
 from telegram import __version__ as TG_VER
 
@@ -19,8 +21,9 @@ if __version_info__ < (20, 0, 0, "alpha", 1):
 
 from fastapi import FastAPI, Request
 
-from telegram import Update, ForceReply, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackContext, CallbackQueryHandler
+from telegram import Update, ForceReply, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
+from telegram.constants import ParseMode
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackContext, CallbackQueryHandler, InlineQueryHandler
 
 # Enable logging
 logging.basicConfig(
@@ -69,19 +72,55 @@ def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
 
 async def inline_button_ex(update: Update, context: CallbackContext) -> None:
     show_list = []
-    show_list.append(InlineKeyboardButton("50", callback_data="50"))
-    show_list.append(InlineKeyboardButton("100", callback_data="100"))
-    show_list.append(InlineKeyboardButton("200", callback_data="200"))
-    show_list.append(InlineKeyboardButton("300", callback_data="300"))
-    show_list.append(InlineKeyboardButton("400", callback_data="400"))
-    show_list.append(InlineKeyboardButton("cancel", callback_data="cancel"))
+    show_list.append(InlineKeyboardButton("50", callback_data="button_ex_50"))
+    show_list.append(InlineKeyboardButton("100", callback_data="button_ex_100"))
+    show_list.append(InlineKeyboardButton("200", callback_data="button_ex_200"))
+    show_list.append(InlineKeyboardButton("300", callback_data="button_ex_300"))
+    show_list.append(InlineKeyboardButton("400", callback_data="button_ex_400"))
+    show_list.append(InlineKeyboardButton("cancel", callback_data="button_ex_cancel"))
     show_markup = InlineKeyboardMarkup(build_menu(show_list, len(show_list) - 1)) # make markup
     
     await update.message.reply_text("Select Input", reply_markup=show_markup)
 
 async def callback_inline_button_ex(update: Update, context: CallbackContext):
     query = update.callback_query
-    await query.edit_message_text(text=f"Selected option: {query.data}")
+    await query.edit_message_text(text=f"Selected option: {query.data.replace('button_ex_','')}")
+
+async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle the inline query. This is run when you type: @botusername <query>
+    Don't forget to enable inline mode with @BotFather
+    """
+    query = update.inline_query.query
+
+    if query == "":
+        return
+    else:
+        query = query.replace("format ","")
+
+    results = [
+        InlineQueryResultArticle(
+            id=str(uuid4()),
+            title="Caps",
+            input_message_content=InputTextMessageContent(query.upper()),
+        ),
+        InlineQueryResultArticle(
+            id=str(uuid4()),
+            title="Bold",
+            input_message_content=InputTextMessageContent(
+                f"<b>{escape(query)}</b>", parse_mode=ParseMode.HTML
+            ),
+        ),
+        InlineQueryResultArticle(
+            id=str(uuid4()),
+            title="Italic",
+            input_message_content=InputTextMessageContent(
+                f"<i>{escape(query)}</i>", parse_mode=ParseMode.HTML
+            ),
+        ),
+    ]
+
+    await update.inline_query.answer(results)
 
 def get_application():
     application = Application.builder().token(BotToken).build()
@@ -92,8 +131,10 @@ def get_application():
     application.add_handler(CommandHandler("button", inline_button_ex))
     # on non command i.e message - echo the message on Telegram
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    # @botusername <query>
+    application.add_handler(InlineQueryHandler(inline_query, pattern=r"^format "))   # @botusername format <query>
     # on UI callback
-    application.add_handler(CallbackQueryHandler(callback_inline_button_ex, pattern=r"(\d+|cancel)"))
+    application.add_handler(CallbackQueryHandler(callback_inline_button_ex, pattern=r"^button_ex_"))
     return application
 
 application = get_application()
