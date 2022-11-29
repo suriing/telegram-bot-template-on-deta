@@ -86,6 +86,38 @@ async def callback_inline_button_ex(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.edit_message_text(text=f"Selected option: {query.data.replace('button_ex_','')}")
 
+async def rps(update: Update, context: CallbackContext) -> None:
+    show_list = []
+    show_list.append(InlineKeyboardButton("✊", callback_data="RPS_ROCK"))
+    show_list.append(InlineKeyboardButton("🖐", callback_data="RPS_PAPER"))
+    show_list.append(InlineKeyboardButton("✌", callback_data="RPS_SISSOR"))
+    show_markup = InlineKeyboardMarkup(build_menu(show_list, len(show_list) - 1)) # make markup
+    
+    await update.message.reply_text("Select your choice", reply_markup=show_markup)
+
+async def callback_rps(update: Update, context: CallbackContext):
+    query = update.callback_query
+    RPS_str = ["RPS_ROCK", "RPS_PAPER", "RPS_SISSOR"]
+    RPS_dict = {"RPS_ROCK" : "✊", "RPS_PAPER" : "🖐", "RPS_SISSOR" : "✌"}
+    bot_choice = RPS_str[random.randint(0,2)]
+    if bot_choice == query.data:
+        await query.edit_message_text(text=f"Draw!\nYou {RPS_dict[query.data]} : {RPS_dict[bot_choice]} Bot")
+    elif query.data == "RPS_ROCK":
+        if bot_choice == "RPS_PAPER":
+            await query.edit_message_text(text=f"Lose!\nYou {RPS_dict[query.data]} : {RPS_dict[bot_choice]} Bot")
+        else:
+            await query.edit_message_text(text=f"Win!\nYou {RPS_dict[query.data]} : {RPS_dict[bot_choice]} Bot")
+    elif query.data == "RPS_PAPER":
+        if bot_choice == "RPS_SISSOR":
+            await query.edit_message_text(text=f"Lose!\nYou {RPS_dict[query.data]} : {RPS_dict[bot_choice]} Bot")
+        else:
+            await query.edit_message_text(text=f"Win!\nYou {RPS_dict[query.data]} : {RPS_dict[bot_choice]} Bot")
+    else:   # query.data == "RPS_SISSOR"
+        if bot_choice == "RPS_ROCK":
+            await query.edit_message_text(text=f"Lose!\nYou {RPS_dict[query.data]} : {RPS_dict[bot_choice]} Bot")
+        else:
+            await query.edit_message_text(text=f"Win!\nYou {RPS_dict[query.data]} : {RPS_dict[bot_choice]} Bot")
+
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle the inline query. This is run when you type: @botusername <query>
@@ -129,12 +161,14 @@ def get_application():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("roll", roll))
     application.add_handler(CommandHandler("button", inline_button_ex))
+    application.add_handler(CommandHandler("rps", rps))
     # on non command i.e message - echo the message on Telegram
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     # @botusername <query>
     application.add_handler(InlineQueryHandler(inline_query, pattern=r"^format "))   # @botusername format <query>
     # on UI callback
     application.add_handler(CallbackQueryHandler(callback_inline_button_ex, pattern=r"^button_ex_"))
+    application.add_handler(CallbackQueryHandler(callback_rps, pattern=r"^RPS_"))
     return application
 
 application = get_application()
@@ -152,7 +186,8 @@ async def webhook_handler(req: Request):
                 BotCommand("start", "Start the bot"),
                 BotCommand("help", "Help message"),
                 BotCommand("roll", "Roll dice. /roll [int=6]"),
-                BotCommand("button", "InlineButton example. /button")
+                BotCommand("button", "InlineButton example. /button"),
+                BotCommand("rps", "Rock Paper Sissor!")
             ]
         )
         await application.start()
